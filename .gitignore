@@ -1,0 +1,21 @@
+# secrets
+.env
+.env.local
+*.pem
+*.key
+
+# node
+node_modules/
+dist/
+build/
+npm-debug.log*
+
+# runner workspace (cloned repos, build artifacts)
+workspace/
+.cache/
+
+# os / editor
+.DS_Store
+.idea/
+.vscode/
+*.log

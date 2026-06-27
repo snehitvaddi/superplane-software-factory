@@ -1,0 +1,44 @@
+# Render Blueprint — qualifies the Render partner track (>=2 services).
+# Create a Blueprint from this file in the Render dashboard.
+databases:
+  - name: factory-postgres          # Service 1: run telemetry (free; 30-day life)
+    plan: free
+
+services:
+  # Service 2: always-on intake listener (X / GitHub / form -> SuperPlane webhook)
+  - type: web
+    name: ingest-gateway
+    runtime: node
+    plan: free
+    rootDir: services/ingest-gateway
+    buildCommand: npm ci
+    startCommand: node src/index.js
+    healthCheckPath: /health
+    envVars:
+      - key: SUPERPLANE_WEBHOOK_URL
+        sync: false
+      - key: SUPERPLANE_WEBHOOK_TOKEN
+        sync: false
+
+  # Service 3: Playwright verifier — loads a preview, screenshots + smoke-checks it
+  - type: web
+    name: factory-verifier
+    runtime: node
+    plan: free
+    rootDir: services/verifier
+    buildCommand: npm ci && npx playwright install --with-deps chromium
+    startCommand: node src/index.js
+    healthCheckPath: /health
+
+  # Service 4 (the per-run preview target): one persistent static site the runner
+  # redeploys each run (free static sites don't spin down -> instant for judges).
+  - type: web
+    name: factory-preview
+    runtime: static
+    rootDir: web_src                # points at the cloned superplane frontend build
+    buildCommand: npm ci && npm run build
+    staticPublishPath: ./dist
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
