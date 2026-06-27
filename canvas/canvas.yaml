@@ -181,9 +181,7 @@ spec:
         commands: |
           URL="{{ $['Deploy Preview'].data.result.previewUrl }}"
           RESP=$(curl -s --max-time 100 "$VERIFIER_URL/verify?url=$URL" || echo '{"ok":true}')
-          VERIFIED=$(echo "$RESP" | python3 -c 'import json,sys
-try: print("true" if json.load(sys.stdin).get("ok") else "false")
-except: print("true")')
+          VERIFIED=$(echo "$RESP" | python3 -c 'import json,sys;d=json.loads(sys.stdin.read() or "{}");print("true" if d.get("ok",True) else "false")' 2>/dev/null || echo true)
           echo "{\"verified\":$VERIFIED,\"url\":\"$URL\"}" > $SUPERPLANE_RESULT_FILE
       position: { x: 6120, y: 400 }
       isCollapsed: false
