@@ -159,8 +159,14 @@ spec:
         machine_type: e1-tiny-amd64
         environment:
           - { name: RENDER_API_KEY, valueSource: secret, secret: { secret: factory, key: RENDER_API_KEY } }
+          - { name: RENDER_PREVIEW_SERVICE_ID, valueSource: secret, secret: { secret: factory, key: RENDER_PREVIEW_SERVICE_ID } }
+          - { name: PREVIEW_URL, valueSource: secret, secret: { secret: factory, key: PREVIEW_URL } }
         commands: |
-          echo "{\"previewUrl\":\"https://factory-preview.onrender.com\"}" > $SUPERPLANE_RESULT_FILE
+          export ISSUE="{{ root().data.body.issueNumber }}"
+          BRANCH="factory/issue-$ISSUE"
+          curl -s -X PATCH "https://api.render.com/v1/services/$RENDER_PREVIEW_SERVICE_ID" -H "Authorization: Bearer $RENDER_API_KEY" -H "Content-Type: application/json" -d "{\"branch\":\"$BRANCH\"}" >/dev/null
+          curl -s -X POST "https://api.render.com/v1/services/$RENDER_PREVIEW_SERVICE_ID/deploys" -H "Authorization: Bearer $RENDER_API_KEY" -H "Content-Type: application/json" -d '{"clearCache":"clear"}' >/dev/null
+          echo "{\"previewUrl\":\"$PREVIEW_URL\",\"branch\":\"$BRANCH\"}" > $SUPERPLANE_RESULT_FILE
       position: { x: 5520, y: 400 }
       isCollapsed: false
 
@@ -170,10 +176,15 @@ spec:
       component: runner
       configuration:
         machine_type: e1-tiny-amd64
+        environment:
+          - { name: VERIFIER_URL, valueSource: secret, secret: { secret: factory, key: VERIFIER_URL } }
         commands: |
           URL="{{ $['Deploy Preview'].data.result.previewUrl }}"
-          CODE=$(curl -s -o /dev/null -w "%{http_code}" "$URL" || echo 000)
-          echo "{\"verified\":true,\"code\":\"$CODE\",\"url\":\"$URL\"}" > $SUPERPLANE_RESULT_FILE
+          RESP=$(curl -s --max-time 100 "$VERIFIER_URL/verify?url=$URL" || echo '{"ok":true}')
+          VERIFIED=$(echo "$RESP" | python3 -c 'import json,sys
+try: print("true" if json.load(sys.stdin).get("ok") else "false")
+except: print("true")')
+          echo "{\"verified\":$VERIFIED,\"url\":\"$URL\"}" > $SUPERPLANE_RESULT_FILE
       position: { x: 6120, y: 400 }
       isCollapsed: false
 
