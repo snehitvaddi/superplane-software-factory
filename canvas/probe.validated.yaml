@@ -1,0 +1,43 @@
+apiVersion: v1
+kind: Canvas
+metadata:
+  id: 07c03f78-499d-4324-a1b3-26936e61a831
+  name: Software Factory
+spec:
+  nodes:
+    - id: trigger-webhook
+      name: Intake
+      type: TYPE_TRIGGER
+      component: webhook
+      configuration:
+        authentication: none
+      position: { x: 120, y: 100 }
+      isCollapsed: false
+    - id: probe
+      name: Probe Secrets
+      type: TYPE_ACTION
+      component: runner
+      configuration:
+        machine_type: e1-tiny-amd64
+        commands: |
+          echo "anthropic set: ${ANTHROPIC_API_KEY:+yes}"
+          echo "gh set: ${GH_PAT:+yes}"
+          echo "render set: ${RENDER_API_KEY:+yes}"
+          echo "issue: $(echo "$SUPERPLANE_PAYLOAD_FILE")"
+          echo "{\"ok\":true}" > $SUPERPLANE_RESULT_FILE
+        environment:
+          - name: ANTHROPIC_API_KEY
+            valueSource: secret
+            secret: { secret: factory, key: ANTHROPIC_API_KEY }
+          - name: GH_PAT
+            valueSource: secret
+            secret: { secret: factory, key: GH_PAT }
+          - name: RENDER_API_KEY
+            valueSource: secret
+            secret: { secret: factory, key: RENDER_API_KEY }
+      position: { x: 720, y: 100 }
+      isCollapsed: false
+  edges:
+    - sourceId: trigger-webhook
+      targetId: probe
+      channel: default
